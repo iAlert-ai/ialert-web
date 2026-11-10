@@ -37,3 +37,9 @@ npm run build   # dist/
 ```
 
 API reference: `docs/api-v1.md` in the iAlert server repository.
+
+## License
+
+Copyright 2026 iAlert.ir
+
+Licensed under the [Apache License, Version 2.0](LICENSE). See [NOTICE](NOTICE).

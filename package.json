@@ -2,7 +2,7 @@
   "name": "@ialert/web",
   "version": "0.1.0",
   "description": "iAlert Web SDK: register browsers and receive notifications over the iAlert Gateway and Inbox.",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -13,7 +13,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "NOTICE"
   ],
   "sideEffects": false,
   "engines": {
