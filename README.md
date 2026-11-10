@@ -1,11 +1,19 @@
-# @ialert/web
+# ialert-web
 
 iAlert Web SDK. It registers the browser as a `web` device of your app and receives notifications while the page is open, over iAlert's own channel: a WebSocket to the iAlert Gateway, plus the device Inbox for anything sent while the page was closed. Each notification reaches your listeners once, across both channels and page loads.
 
 Browser Web Push (VAPID, notifications while the site is closed) is not available yet; it will be added to this SDK without changing the API below.
 
+## Install
+
+```bash
+npm install ialert-web
+```
+
+## Usage
+
 ```ts
-import { IAlert } from "@ialert/web";
+import { IAlert } from "ialert-web";
 
 const ialert = new IAlert({ publicKey: "ia_pk_live_…" });
 

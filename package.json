@@ -1,7 +1,23 @@
 {
-  "name": "@ialert/web",
+  "name": "ialert-web",
   "version": "0.1.0",
   "description": "iAlert Web SDK: register browsers and receive notifications over the iAlert Gateway and Inbox.",
+  "keywords": [
+    "ialert",
+    "push",
+    "push-notifications",
+    "notifications",
+    "websocket",
+    "web-push"
+  ],
+  "homepage": "https://github.com/iAlert-ai/ialert-web#readme",
+  "bugs": {
+    "url": "https://github.com/iAlert-ai/ialert-web/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iAlert-ai/ialert-web.git"
+  },
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
