@@ -20,7 +20,7 @@ export interface Device {
     updated_at: string;
 }
 
-/** A notification as received from the Gateway or the Inbox; `id` is the notification id. */
+/** A notification as received over Web Push, the Gateway or the Inbox; `id` is the notification id. */
 export interface IAlertMessage {
     id: string;
     title: string | null;
@@ -30,7 +30,7 @@ export interface IAlertMessage {
     collapse_id: string | null;
     created_at: string | null;
     /** Where the SDK got it first. */
-    source: "gateway" | "inbox";
+    source: "gateway" | "inbox" | "push";
 }
 
 export type AckEvent = "delivered" | "read" | "clicked";
@@ -62,3 +62,29 @@ export interface KeyValueStorage {
 }
 
 export type ConnectionState = "idle" | "connecting" | "ready" | "closed";
+
+export interface EnableWebPushOptions {
+    /** URL of the service worker on your origin; default `/ialert-sw.js` (copy `service-worker.js` from this package there). */
+    serviceWorkerUrl?: string;
+    /** The app's VAPID public key; fetched from iAlert when omitted. */
+    vapidPublicKey?: string;
+    /** Device fields sent with the registration. */
+    register?: Omit<RegisterOptions, "pushToken">;
+}
+
+/** The browser APIs Web Push needs; defaults to the real ones (injectable for tests). */
+export interface WebPushEnvironment {
+    serviceWorker: Pick<ServiceWorkerContainer, "register" | "addEventListener"> & { ready: Promise<{ pushManager: PushManagerLike }> };
+    requestPermission: () => Promise<NotificationPermission>;
+}
+
+export interface PushManagerLike {
+    getSubscription(): Promise<PushSubscriptionLike | null>;
+    subscribe(options: { userVisibleOnly: boolean; applicationServerKey: Uint8Array }): Promise<PushSubscriptionLike>;
+}
+
+export interface PushSubscriptionLike {
+    options?: { applicationServerKey?: ArrayBuffer | null };
+    toJSON(): unknown;
+    unsubscribe(): Promise<boolean>;
+}

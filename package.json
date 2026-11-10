@@ -1,7 +1,7 @@
 {
   "name": "ialert-web",
-  "version": "0.1.0",
-  "description": "iAlert Web SDK: register browsers and receive notifications over the iAlert Gateway and Inbox.",
+  "version": "0.2.0",
+  "description": "iAlert Web SDK: register browsers, receive Web Push while the site is closed and live messages over the iAlert Gateway and Inbox.",
   "keywords": [
     "ialert",
     "push",
@@ -30,6 +30,7 @@
   },
   "files": [
     "dist",
+    "service-worker.js",
     "NOTICE"
   ],
   "sideEffects": false,

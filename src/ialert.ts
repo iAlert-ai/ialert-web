@@ -2,9 +2,9 @@ import { ApiClient, type InboxEntry } from "./api.ts";
 import { IAlertError } from "./errors.ts";
 import { GatewayConnection, type WebSocketFactory } from "./gateway.ts";
 import { Store, defaultStorage } from "./storage.ts";
-import type { AckEvent, ConnectionState, Device, IAlertMessage, KeyValueStorage, RegisterOptions, TagValue, UpdateOptions } from "./types.ts";
+import type { AckEvent, ConnectionState, Device, EnableWebPushOptions, IAlertMessage, KeyValueStorage, PushSubscriptionLike, RegisterOptions, TagValue, UpdateOptions, WebPushEnvironment } from "./types.ts";
 
-export const SDK_VERSION = "0.1.0";
+export const SDK_VERSION = "0.2.0";
 
 const TAG_KEY = /^[A-Za-z0-9_.:-]{1,64}$/;
 const SEEN_LIMIT = 500;
@@ -21,6 +21,8 @@ export interface IAlertOptions {
     autoConnect?: boolean;
     /** Ack "delivered" for every message handed to listeners; default true. */
     autoAckDelivered?: boolean;
+    /** Browser APIs for Web Push; defaults to `navigator.serviceWorker` and `Notification`. */
+    webPush?: WebPushEnvironment;
 }
 
 interface Registration {
@@ -83,6 +85,50 @@ export class IAlert {
         }
 
         return result.data;
+    }
+
+    /**
+     * Turn on browser notifications that arrive even when the site is closed.
+     * Asks the user for permission, subscribes with the app's VAPID key and
+     * registers the subscription; the Gateway and Inbox keep working as before.
+     * Call it from a user gesture (a click), as browsers require for the prompt.
+     */
+    async enableWebPush(options: EnableWebPushOptions = {}): Promise<Device> {
+        const browser = this.webPushEnvironment();
+
+        if ((await browser.requestPermission()) !== "granted") {
+            throw new IAlertError(0, "permission_denied", "The user did not allow notifications.");
+        }
+
+        const vapidKey = options.vapidPublicKey ?? (await this.api.webPushConfig()).vapid_public_key;
+
+        if (!vapidKey) {
+            throw new IAlertError(0, "web_push_not_configured", "Generate the app's Web Push keys in the iAlert panel first.");
+        }
+
+        this.listenToServiceWorker(browser);
+        await browser.serviceWorker.register(options.serviceWorkerUrl ?? "/ialert-sw.js");
+        const { pushManager } = await browser.serviceWorker.ready;
+        const applicationServerKey = base64UrlToBytes(vapidKey);
+
+        let subscription = await pushManager.getSubscription();
+
+        if (subscription !== null && !sameKey(subscription, applicationServerKey)) {
+            await subscription.unsubscribe();
+            subscription = null;
+        }
+
+        subscription ??= await pushManager.subscribe({ userVisibleOnly: true, applicationServerKey });
+
+        const previous = this.registration();
+        const device = await this.register({ ...options.register, pushToken: JSON.stringify(subscription.toJSON()) });
+
+        // The Gateway-only registration (installation id) is a different device; retire it.
+        if (previous !== null && previous.deviceId !== device.id) {
+            void this.api.unsubscribe(previous.deviceId, previous.deviceToken).catch(() => undefined);
+        }
+
+        return device;
     }
 
     /** Update the external user id, tags (merged) or locale of this device. */
@@ -199,6 +245,44 @@ export class IAlert {
         }
 
         return received;
+    }
+
+    private listening = false;
+
+    /** Pushes and clicks the service worker forwards to open pages. */
+    private listenToServiceWorker(browser: WebPushEnvironment): void {
+        if (this.listening) {
+            return;
+        }
+
+        this.listening = true;
+        browser.serviceWorker.addEventListener("message", (event: Event) => {
+            const data = (event as MessageEvent).data as { type?: string; message?: Record<string, unknown>; id?: string } | undefined;
+
+            if (data?.type === "ialert:message" && data.message?.id !== undefined) {
+                this.receive({ ...this.fromGateway(data.message), source: "push" });
+            } else if (data?.type === "ialert:click" && typeof data.id === "string" && this.registration() !== null) {
+                void this.ack([data.id], "clicked").catch(() => undefined);
+            }
+        });
+    }
+
+    private webPushEnvironment(): WebPushEnvironment {
+        if (this.options.webPush) {
+            return this.options.webPush;
+        }
+
+        const nav = globalThis.navigator as Navigator | undefined;
+        const notification = (globalThis as { Notification?: typeof Notification }).Notification;
+
+        if (!nav?.serviceWorker || !("PushManager" in globalThis) || !notification) {
+            throw new IAlertError(0, "web_push_unsupported", "This browser does not support Web Push.");
+        }
+
+        return {
+            serviceWorker: nav.serviceWorker as unknown as WebPushEnvironment["serviceWorker"],
+            requestPermission: () => notification.requestPermission(),
+        };
     }
 
     /** Dedupe by notification id across Gateway, Inbox and page loads. */
@@ -393,4 +477,24 @@ function detectOs(userAgent: string): string {
     }
 
     return "Unknown";
+}
+
+function base64UrlToBytes(value: string): Uint8Array {
+    const base64 = value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (value.length % 4)) % 4);
+    const binary = atob(base64);
+
+    return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+/** Whether an existing subscription was made with this VAPID key (a new key needs a new subscription). */
+function sameKey(subscription: PushSubscriptionLike, key: Uint8Array): boolean {
+    const current = subscription.options?.applicationServerKey;
+
+    if (!current) {
+        return true;
+    }
+
+    const bytes = new Uint8Array(current);
+
+    return bytes.length === key.length && bytes.every((byte, index) => byte === key[index]);
 }

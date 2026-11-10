@@ -72,6 +72,11 @@ export class ApiClient {
         return acknowledged;
     }
 
+    /** Whether the app has Web Push keys, and its VAPID public key. */
+    async webPushConfig(): Promise<{ enabled: boolean; vapid_public_key: string | null }> {
+        return (await this.request<{ data: { enabled: boolean; vapid_public_key: string | null } }>("GET", "/web-push")).data;
+    }
+
     private async request<T>(method: string, pathOrUrl: string, body?: unknown, deviceToken?: string): Promise<T> {
         const headers: Record<string, string> = {
             Accept: "application/json",
