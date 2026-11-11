@@ -53,6 +53,22 @@ It asks for permission, subscribes with the app's VAPID key (fetched from iAlert
 
 Without Web Push, the SDK keeps working as before: messages arrive over the Gateway while the page is open and from the Inbox on the next visit.
 
+## Auth Push (approve a sign-in on the phone)
+
+When your server creates an Auth Push request (`POST /v1/auth-requests`), every device of that user gets a high-priority push. Show your own approve/deny screen and answer with the device's token:
+
+```ts
+ialert.onMessage(async (message) => {
+    const request = authRequestOf(message); // null for other messages
+    if (!request) return;
+    const ok = window.confirm(`Sign in from ${request.context.city ?? "a new device"}?`);
+    const code = ok && request.numberMatching ? window.prompt("Type the number shown on the sign-in page") ?? undefined : undefined;
+    await ialert.respondToAuthRequest(request.id, ok, code); // "approved" | "denied"
+});
+```
+
+With number matching, the user types the two-digit number shown on your sign-in page; a wrong number denies the request. An unknown or expired request throws without clearing the device registration.
+
 ## Development
 
 ```bash

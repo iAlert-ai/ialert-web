@@ -1,5 +1,5 @@
 import { IAlertError } from "./errors.ts";
-import type { AckEvent, Device } from "./types.ts";
+import type { AckEvent, AuthRequestResult, Device } from "./types.ts";
 
 type Fetch = typeof globalThis.fetch;
 
@@ -75,6 +75,17 @@ export class ApiClient {
     /** Whether the app has Web Push keys, and its VAPID public key. */
     async webPushConfig(): Promise<{ enabled: boolean; vapid_public_key: string | null }> {
         return (await this.request<{ data: { enabled: boolean; vapid_public_key: string | null } }>("GET", "/web-push")).data;
+    }
+
+    /** Approve or deny an Auth Push sign-in request on this device. */
+    async respondToAuthRequest(deviceId: string, deviceToken: string, requestId: string, decision: "approve" | "deny", code?: string): Promise<AuthRequestResult> {
+        const body: Record<string, unknown> = { decision };
+
+        if (code !== undefined) {
+            body.code = code;
+        }
+
+        return (await this.request<{ data: AuthRequestResult }>("POST", `/devices/${encodeURIComponent(deviceId)}/auth-requests/${encodeURIComponent(requestId)}`, body, deviceToken)).data;
     }
 
     private async request<T>(method: string, pathOrUrl: string, body?: unknown, deviceToken?: string): Promise<T> {

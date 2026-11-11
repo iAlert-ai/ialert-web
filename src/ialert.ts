@@ -2,9 +2,9 @@ import { ApiClient, type InboxEntry } from "./api.ts";
 import { IAlertError } from "./errors.ts";
 import { GatewayConnection, type WebSocketFactory } from "./gateway.ts";
 import { Store, defaultStorage } from "./storage.ts";
-import type { AckEvent, ConnectionState, Device, EnableWebPushOptions, IAlertMessage, KeyValueStorage, PushSubscriptionLike, RegisterOptions, TagValue, UpdateOptions, WebPushEnvironment } from "./types.ts";
+import type { AckEvent, AuthRequestInfo, AuthRequestResult, ConnectionState, Device, EnableWebPushOptions, IAlertMessage, KeyValueStorage, PushSubscriptionLike, RegisterOptions, TagValue, UpdateOptions, WebPushEnvironment } from "./types.ts";
 
-export const SDK_VERSION = "0.2.0";
+export const SDK_VERSION = "0.3.0";
 
 const TAG_KEY = /^[A-Za-z0-9_.:-]{1,64}$/;
 const SEEN_LIMIT = 500;
@@ -129,6 +129,16 @@ export class IAlert {
         }
 
         return device;
+    }
+
+    /**
+     * Approve or deny an Auth Push sign-in request (see `authRequestOf(message)`).
+     * With number matching pass the number the user typed; a wrong one denies.
+     */
+    async respondToAuthRequest(requestId: string, approve: boolean, code?: string): Promise<AuthRequestResult> {
+        const registration = await this.requireRegistration();
+
+        return this.withToken(() => this.api.respondToAuthRequest(registration.deviceId, registration.deviceToken, requestId, approve ? "approve" : "deny", code), false);
     }
 
     /** Update the external user id, tags (merged) or locale of this device. */
@@ -431,11 +441,15 @@ export class IAlert {
     }
 
     /** A rejected device token means the device was deleted or unsubscribed elsewhere. */
-    private async withToken<T>(call: () => Promise<T>): Promise<T> {
+    /**
+     * A rejected device token means the device was deleted or unsubscribed elsewhere.
+     * A 404 means the same, except where the path also names another resource.
+     */
+    private async withToken<T>(call: () => Promise<T>, forgetOnNotFound = true): Promise<T> {
         try {
             return await call();
         } catch (error) {
-            if (error instanceof IAlertError && (error.code === "device_token_invalid" || error.status === 404)) {
+            if (error instanceof IAlertError && (error.code === "device_token_invalid" || (forgetOnNotFound && error.status === 404))) {
                 this.disconnect();
                 this.store.remove("registration");
             }
@@ -497,4 +511,29 @@ function sameKey(subscription: PushSubscriptionLike, key: Uint8Array): boolean {
     const bytes = new Uint8Array(current);
 
     return bytes.length === key.length && bytes.every((byte, index) => byte === key[index]);
+}
+
+/** The Auth Push request a message carries, or `null` for other messages. */
+export function authRequestOf(message: { data: Record<string, unknown> }): AuthRequestInfo | null {
+    const data = message.data;
+
+    if (data.ialert_type !== "auth_request" || typeof data.auth_request_id !== "string") {
+        return null;
+    }
+
+    const reserved = new Set(["ialert_type", "auth_request_id", "number_matching", "expires_at"]);
+    const context: Record<string, string> = {};
+
+    for (const [key, value] of Object.entries(data)) {
+        if (!reserved.has(key) && typeof value === "string") {
+            context[key] = value;
+        }
+    }
+
+    return {
+        id: data.auth_request_id,
+        numberMatching: data.number_matching === "1" || data.number_matching === true,
+        expiresAt: typeof data.expires_at === "string" ? data.expires_at : null,
+        context,
+    };
 }

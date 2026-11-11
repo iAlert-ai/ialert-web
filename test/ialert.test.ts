@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
-import { IAlert, IAlertError, type IAlertMessage } from "../src/index.ts";
+import { IAlert, IAlertError, authRequestOf, type IAlertMessage } from "../src/index.ts";
 import { FakeSocket, ackResponder, fakeFetch, flush, inboxEntry, inboxResponder, newStorage, registerResponder } from "./helpers.ts";
 
 const PUBLIC_KEY = "ia_pk_live_abcdefghijkl_secret";
@@ -40,7 +40,7 @@ describe("registration", () => {
         assert.match(String(body.push_token), /^ia_web_[0-9a-f-]{36}$/);
         assert.equal(body.external_user_id, "user-42");
         assert.deepEqual(body.tags, { plan: "gold" });
-        assert.equal(body.sdk_version, "0.2.0");
+        assert.equal(body.sdk_version, "0.3.0");
         assert.equal((second?.body as Record<string, unknown>).push_token, body.push_token);
     });
 
@@ -165,5 +165,42 @@ describe("gateway", () => {
 
         assert.equal(FakeSocket.instances.length, 2);
         assert.equal(ialert.deviceId, null);
+    });
+});
+
+describe("auth push", () => {
+    const answerResponder = (request: { method: string; url: string }) =>
+        request.method === "POST" && request.url.includes("/auth-requests/")
+            ? { body: { data: { id: "01AUTH", status: "approved", external_user_id: "user-42", number_matching: true, expires_at: "x", responded_at: "y", device_id: "dev_1" } } }
+            : undefined;
+
+    it("answers with the device token and the typed code", async () => {
+        const { fetch, requests } = fakeFetch(registerResponder, answerResponder);
+        const ialert = sdk(fetch, newStorage(), { autoConnect: false });
+        await ialert.register();
+
+        const result = await ialert.respondToAuthRequest("01AUTH", true, "47");
+
+        const call = requests.find((r) => r.url.includes("/auth-requests/"));
+        assert.equal(call?.url, "https://api.test/api/v1/devices/dev_1/auth-requests/01AUTH");
+        assert.equal(call?.headers["X-Device-Token"], "ia_dt_dev_1.sig");
+        assert.deepEqual(call?.body, { decision: "approve", code: "47" });
+        assert.equal(result.status, "approved");
+    });
+
+    it("keeps the registration when the request is unknown", async () => {
+        const { fetch } = fakeFetch(registerResponder);
+        const ialert = sdk(fetch, newStorage(), { autoConnect: false });
+        await ialert.register();
+
+        await assert.rejects(ialert.respondToAuthRequest("missing", false), (error: IAlertError) => error.status === 404);
+        assert.equal(ialert.deviceId, "dev_1");
+    });
+
+    it("reads the request a message carries", () => {
+        const info = authRequestOf({ data: { ialert_type: "auth_request", auth_request_id: "01AUTH", number_matching: "1", expires_at: "2026-11-11T10:00:00Z", ip: "5.160.1.2", city: "Tehran" } });
+
+        assert.deepEqual(info, { id: "01AUTH", numberMatching: true, expiresAt: "2026-11-11T10:00:00Z", context: { ip: "5.160.1.2", city: "Tehran" } });
+        assert.equal(authRequestOf({ data: { order: "42" } }), null);
     });
 });

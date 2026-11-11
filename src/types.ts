@@ -88,3 +88,23 @@ export interface PushSubscriptionLike {
     toJSON(): unknown;
     unsubscribe(): Promise<boolean>;
 }
+
+/** The answer to an Auth Push request, as iAlert recorded it. */
+export interface AuthRequestResult {
+    id: string;
+    status: "pending" | "approved" | "denied" | "expired";
+    external_user_id: string;
+    number_matching: boolean;
+    expires_at: string;
+    responded_at: string | null;
+    device_id: string | null;
+}
+
+/** An Auth Push sign-in request carried by a message (`message.data.ialert_type === "auth_request"`). */
+export interface AuthRequestInfo {
+    id: string;
+    numberMatching: boolean;
+    expiresAt: string | null;
+    /** Your `context` values (IP, city, device…) to show the user. */
+    context: Record<string, string>;
+}
