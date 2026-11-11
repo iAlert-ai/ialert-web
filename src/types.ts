@@ -31,6 +31,8 @@ export interface IAlertMessage {
     created_at: string | null;
     /** Where the SDK got it first. */
     source: "gateway" | "inbox" | "push";
+    /** Sound name sent with the message; browsers play their own sound, `none` is silent. */
+    sound?: string | null;
 }
 
 export type AckEvent = "delivered" | "read" | "clicked";

@@ -33,6 +33,7 @@ self.addEventListener("push", (event) => {
                 body: message.title ? message.body || "" : "",
                 image: message.image || undefined,
                 tag: message.collapse_id || message.id,
+                silent: message.sound === "none",
                 data: { ialert: message },
             });
         })(),

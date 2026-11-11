@@ -190,3 +190,23 @@ describe("init", () => {
         assert.deepEqual(shown.map((m) => m.id), ["ntf_1"]);
     });
 });
+
+describe("sound", () => {
+    it("passes the message's sound to listeners and to hidden-tab notifications", async () => {
+        devices = 0;
+        const entry = { ...inboxEntry("ntf_1"), content: { ...inboxEntry("ntf_1").content, sound: "none" } };
+        const { fetch } = fakeFetch(registerResponder, inboxResponder([entry]), ackResponder);
+        const { browser } = fakeBrowser();
+        const shown: IAlertMessage[] = [];
+        browser.permission = () => "granted";
+        browser.isHidden = () => true;
+        browser.showNotification = (message) => shown.push(message);
+
+        const ialert = sdk(fetch, browser);
+        await ialert.register();
+        const [message] = await ialert.syncInbox();
+
+        assert.equal(message?.sound, "none");
+        assert.equal(shown[0]?.sound, "none");
+    });
+});

@@ -25,6 +25,8 @@ That is all. `init()` registers the browser, connects to the Gateway, syncs the 
 - with a tab open, over the Gateway, shown as system notifications while the tab is in the background (also when Web Push servers are unreachable during an outage; `showNotificationsWhenHidden: false` to turn off);
 - missed ones from the Inbox on the next visit, each exactly once.
 
+Browsers play their own notification sound; a message sent with `"sound": "none"` shows silently.
+
 Listen with `ialert.onMessage(…)` if the page should react too; `await ialert.ready` waits for the first registration.
 
 ## Usage (manual)

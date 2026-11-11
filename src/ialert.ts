@@ -354,6 +354,7 @@ export class IAlert {
                 const options: NotificationOptions & { image?: string } = {
                     body: message.title ? (message.body ?? "") : "",
                     tag: message.collapse_id ?? message.id,
+                    silent: message.sound === "none",
                     data: { ialert: { ...message, source: undefined } },
                 };
 
@@ -442,6 +443,7 @@ export class IAlert {
             collapse_id: text(message.collapse_id),
             created_at: text(message.created_at),
             source: "gateway",
+            sound: text(message.sound),
         };
     }
 
@@ -457,6 +459,7 @@ export class IAlert {
             collapse_id: entry.collapse_id,
             created_at: entry.created_at,
             source: "inbox",
+            sound: entry.content.sound ?? null,
         };
     }
 

@@ -4,6 +4,7 @@
 
 - `IAlert.init()`: one-line setup that registers, connects and turns on Web Push (silently when allowed, else on the first user interaction).
 - Gateway and Inbox messages show as system notifications while the tab is hidden.
+- `message.sound`; `"none"` shows notifications silently (service worker and hidden tabs).
 
 ## 0.3.0
 
