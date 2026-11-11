@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0
+
+- `IAlert.init()`: one-line setup that registers, connects and turns on Web Push (silently when allowed, else on the first user interaction).
+- Gateway and Inbox messages show as system notifications while the tab is hidden.
+
 ## 0.3.0
 
 - Auth Push: `respondToAuthRequest` approves or denies a sign-in request on this device (with the typed number for number matching), and a helper reads the request a message carries.

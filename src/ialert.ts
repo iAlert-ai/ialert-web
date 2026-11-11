@@ -2,9 +2,9 @@ import { ApiClient, type InboxEntry } from "./api.ts";
 import { IAlertError } from "./errors.ts";
 import { GatewayConnection, type WebSocketFactory } from "./gateway.ts";
 import { Store, defaultStorage } from "./storage.ts";
-import type { AckEvent, AuthRequestInfo, AuthRequestResult, ConnectionState, Device, EnableWebPushOptions, IAlertMessage, KeyValueStorage, PushSubscriptionLike, RegisterOptions, TagValue, UpdateOptions, WebPushEnvironment } from "./types.ts";
+import type { AckEvent, AuthRequestInfo, AuthRequestResult, ConnectionState, Device, EnableWebPushOptions, IAlertMessage, InitOptions, KeyValueStorage, PushSubscriptionLike, RegisterOptions, TagValue, UpdateOptions, WebPushEnvironment } from "./types.ts";
 
-export const SDK_VERSION = "0.3.0";
+export const SDK_VERSION = "0.4.0";
 
 const TAG_KEY = /^[A-Za-z0-9_.:-]{1,64}$/;
 const SEEN_LIMIT = 500;
@@ -23,6 +23,11 @@ export interface IAlertOptions {
     autoAckDelivered?: boolean;
     /** Browser APIs for Web Push; defaults to `navigator.serviceWorker` and `Notification`. */
     webPush?: WebPushEnvironment;
+    /**
+     * Show Gateway and Inbox messages as system notifications while the tab is
+     * hidden (when Web Push servers are unreachable, e.g. during an outage); default true.
+     */
+    showNotificationsWhenHidden?: boolean;
 }
 
 interface Registration {
@@ -58,6 +63,57 @@ export class IAlert {
         this.api = new ApiClient(options.apiUrl ?? "https://api.ialert.ir/api/v1", options.publicKey, fetchFn);
         this.store = new Store(options.storage ?? defaultStorage(), options.publicKey.slice(-12));
         this.seen = this.store.get<string[]>("seen") ?? [];
+    }
+
+    /**
+     * One-line setup: registers this browser, connects to the Gateway and turns on
+     * Web Push. When permission was already granted it subscribes silently;
+     * otherwise it asks on the user's first click or key press. Failures of the
+     * Web Push step never stop the Gateway and Inbox from working.
+     */
+    static init(options: IAlertOptions & InitOptions): IAlert {
+        const { serviceWorkerUrl, promptOnInteraction, externalUserId, tags, locale, timezone, appVersion, ...sdkOptions } = options;
+        const ialert = new IAlert(sdkOptions);
+        const register = { externalUserId, tags, locale, timezone, appVersion };
+        ialert.ready = ialert.setUp(register, serviceWorkerUrl, promptOnInteraction !== false);
+
+        return ialert;
+    }
+
+    /** Resolves when `init()` finished its first registration (rejects if it failed). */
+    ready: Promise<Device | null> = Promise.resolve(null);
+
+    private async setUp(register: Omit<RegisterOptions, "pushToken">, serviceWorkerUrl: string | undefined, promptOnInteraction: boolean): Promise<Device> {
+        const fields = Object.fromEntries(Object.entries(register).filter(([, value]) => value !== undefined)) as Omit<RegisterOptions, "pushToken">;
+        const device = await this.register(fields);
+        let browser: WebPushEnvironment;
+
+        try {
+            browser = this.webPushEnvironment();
+        } catch {
+            return device; // no Web Push in this browser: Gateway and Inbox only
+        }
+
+        const enable = () => this.enableWebPush({ serviceWorkerUrl, register: fields }).catch(() => null);
+        const permission = browser.permission?.() ?? "default";
+
+        if (permission === "granted") {
+            return (await enable()) ?? device;
+        }
+
+        const doc = (globalThis as { document?: Document }).document;
+
+        if (permission === "default" && promptOnInteraction && doc) {
+            const once = () => {
+                doc.removeEventListener("click", once, true);
+                doc.removeEventListener("keydown", once, true);
+                void enable();
+            };
+            doc.addEventListener("click", once, true);
+            doc.addEventListener("keydown", once, true);
+        }
+
+        return device;
     }
 
     /** The registered device id, or null before `register()`. */
@@ -292,6 +348,27 @@ export class IAlert {
         return {
             serviceWorker: nav.serviceWorker as unknown as WebPushEnvironment["serviceWorker"],
             requestPermission: () => notification.requestPermission(),
+            permission: () => notification.permission,
+            isHidden: () => (globalThis as { document?: Document }).document?.visibilityState === "hidden",
+            showNotification: (message) => {
+                const options: NotificationOptions & { image?: string } = {
+                    body: message.title ? (message.body ?? "") : "",
+                    tag: message.collapse_id ?? message.id,
+                    data: { ialert: { ...message, source: undefined } },
+                };
+
+                if (message.image) {
+                    options.image = message.image;
+                }
+
+                void nav.serviceWorker.getRegistration().then((registration) => {
+                    if (registration) {
+                        return registration.showNotification(message.title || message.body || "", options);
+                    }
+
+                    new notification(message.title || message.body || "", options);
+                }).catch(() => undefined);
+            },
         };
     }
 
@@ -315,11 +392,38 @@ export class IAlert {
             }
         }
 
+        this.showIfHidden(message);
+
         if (ack && this.options.autoAckDelivered !== false) {
             void this.ack([message.id], "delivered").catch(() => undefined);
         }
 
         return true;
+    }
+
+    /** A hidden tab would miss a Gateway/Inbox message; show it as a system notification. */
+    private showIfHidden(message: IAlertMessage): void {
+        if (message.source === "push" || this.options.showNotificationsWhenHidden === false) {
+            return;
+        }
+
+        let browser: WebPushEnvironment;
+
+        try {
+            browser = this.webPushEnvironment();
+        } catch {
+            return; // no notifications in this environment
+        }
+
+        const hidden = browser.isHidden?.() ?? false;
+
+        if (!hidden || message.data.ialert_type === "auth_request" || (!message.title && !message.body)) {
+            return;
+        }
+
+        if ((browser.permission?.() ?? "default") === "granted") {
+            browser.showNotification?.(message);
+        }
     }
 
     private hasSeen(id: string): boolean {

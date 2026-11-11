@@ -76,6 +76,22 @@ export interface EnableWebPushOptions {
 export interface WebPushEnvironment {
     serviceWorker: Pick<ServiceWorkerContainer, "register" | "addEventListener"> & { ready: Promise<{ pushManager: PushManagerLike }> };
     requestPermission: () => Promise<NotificationPermission>;
+    /** Current permission without prompting; default `Notification.permission`. */
+    permission?: () => NotificationPermission;
+    /** Whether the page is in the background; default `document.visibilityState`. */
+    isHidden?: () => boolean;
+    /** Show a system notification for a message that did not come through Web Push. */
+    showNotification?: (message: IAlertMessage) => void;
+}
+
+export interface InitOptions extends Omit<RegisterOptions, "pushToken"> {
+    /** URL of the iAlert service worker on your origin; default `/ialert-sw.js`. */
+    serviceWorkerUrl?: string;
+    /**
+     * Ask for notification permission on the user's first click or key press
+     * (browsers only show the prompt for a user gesture); default true.
+     */
+    promptOnInteraction?: boolean;
 }
 
 export interface PushManagerLike {

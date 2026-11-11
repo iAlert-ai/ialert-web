@@ -40,7 +40,7 @@ describe("registration", () => {
         assert.match(String(body.push_token), /^ia_web_[0-9a-f-]{36}$/);
         assert.equal(body.external_user_id, "user-42");
         assert.deepEqual(body.tags, { plan: "gold" });
-        assert.equal(body.sdk_version, "0.3.0");
+        assert.equal(body.sdk_version, "0.4.0");
         assert.equal((second?.body as Record<string, unknown>).push_token, body.push_token);
     });
 

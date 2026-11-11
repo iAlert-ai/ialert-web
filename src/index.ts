@@ -9,6 +9,7 @@ export type {
     Device,
     EnableWebPushOptions,
     IAlertMessage,
+    InitOptions,
     KeyValueStorage,
     PushManagerLike,
     PushSubscriptionLike,

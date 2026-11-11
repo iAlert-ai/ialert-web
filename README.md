@@ -8,7 +8,26 @@ iAlert Web SDK. It registers the browser as a `web` device of your app and recei
 npm install ialert-web
 ```
 
-## Usage
+## Quick start
+
+1. Copy `node_modules/ialert-web/service-worker.js` to your site's root as `/ialert-sw.js` (browsers only allow a service worker from your own origin).
+2. Add one line:
+
+```ts
+import { IAlert } from "ialert-web";
+
+const ialert = IAlert.init({ publicKey: "ia_pk_live_…", externalUserId: "user-42" });
+```
+
+That is all. `init()` registers the browser, connects to the Gateway, syncs the Inbox and turns on Web Push: silently when notifications are already allowed, otherwise with the permission prompt on the user's first click or key press (`promptOnInteraction: false` to call `enableWebPush()` yourself). Notifications then arrive:
+
+- with the site closed, through Web Push;
+- with a tab open, over the Gateway, shown as system notifications while the tab is in the background (also when Web Push servers are unreachable during an outage; `showNotificationsWhenHidden: false` to turn off);
+- missed ones from the Inbox on the next visit, each exactly once.
+
+Listen with `ialert.onMessage(…)` if the page should react too; `await ialert.ready` waits for the first registration.
+
+## Usage (manual)
 
 ```ts
 import { IAlert } from "ialert-web";

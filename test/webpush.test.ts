@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { IAlert, IAlertError, type IAlertMessage, type PushSubscriptionLike, type WebPushEnvironment } from "../src/index.ts";
-import { ackResponder, fakeFetch, flush, newStorage } from "./helpers.ts";
+import { ackResponder, fakeFetch, flush, inboxEntry, inboxResponder, newStorage } from "./helpers.ts";
 
 const PUBLIC_KEY = "ia_pk_live_abcdefghijkl_secret";
 const VAPID = "BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8";
@@ -144,5 +144,49 @@ describe("web push", () => {
 
         const acks = requests.filter((r) => r.url.endsWith("/inbox/ack")).map((r) => (r.body as { event: string }).event);
         assert.deepEqual(acks.sort(), ["clicked", "delivered"]);
+    });
+});
+
+describe("init", () => {
+    it("registers and subscribes to Web Push silently when permission was already granted", async () => {
+        devices = 0;
+        const { fetch } = fakeFetch(configResponder, registerResponder, unsubscribeResponder);
+        const { browser, calls } = fakeBrowser();
+        browser.permission = () => "granted";
+
+        const ialert = IAlert.init({ publicKey: PUBLIC_KEY, apiUrl: "https://api.test/api/v1", fetch, storage: newStorage(), webPush: browser, autoConnect: false, externalUserId: "user-42" });
+        const device = await ialert.ready;
+
+        assert.equal(device?.id, "dev_2");
+        assert.deepEqual(calls.registered, ["/ialert-sw.js"]);
+    });
+
+    it("keeps the Gateway registration when Web Push is not configured", async () => {
+        devices = 0;
+        const { fetch } = fakeFetch((r) => (r.url.endsWith("/web-push") ? { body: { data: { enabled: false, vapid_public_key: null } } } : undefined), registerResponder);
+        const { browser } = fakeBrowser();
+        browser.permission = () => "granted";
+
+        const ialert = IAlert.init({ publicKey: PUBLIC_KEY, apiUrl: "https://api.test/api/v1", fetch, storage: newStorage(), webPush: browser, autoConnect: false });
+
+        assert.equal((await ialert.ready)?.id, "dev_1");
+    });
+
+    it("shows a system notification for an Inbox message while the tab is hidden, not for Web Push ones", async () => {
+        devices = 0;
+        const { fetch } = fakeFetch(configResponder, registerResponder, inboxResponder([inboxEntry("ntf_1")]), ackResponder);
+        const { browser, post } = fakeBrowser();
+        const shown: IAlertMessage[] = [];
+        browser.permission = () => "granted";
+        browser.isHidden = () => true;
+        browser.showNotification = (message) => shown.push(message);
+
+        const ialert = sdk(fetch, browser);
+        await ialert.register();
+        await ialert.syncInbox();
+        await ialert.enableWebPush();
+        post({ type: "ialert:message", message: { id: "ntf_2", title: "push", body: "b", data: {} } });
+
+        assert.deepEqual(shown.map((m) => m.id), ["ntf_1"]);
     });
 });
