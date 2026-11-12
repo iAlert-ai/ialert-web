@@ -33,6 +33,11 @@ export interface IAlertMessage {
     source: "gateway" | "inbox" | "push";
     /** Sound name sent with the message; browsers play their own sound, `none` is silent. */
     sound?: string | null;
+    /**
+     * Opened on click: a web link (`https://…`) or an app deep link. Falls back to `data.url`
+     * for messages sent before the `url` field.
+     */
+    url?: string | null;
 }
 
 export type AckEvent = "delivered" | "read" | "clicked";

@@ -1,6 +1,6 @@
 {
   "name": "ialert-web",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "iAlert Web SDK: register browsers, receive Web Push while the site is closed and live messages over the iAlert Gateway and Inbox.",
   "keywords": [
     "ialert",

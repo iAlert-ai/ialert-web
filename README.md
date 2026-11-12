@@ -70,7 +70,7 @@ button.addEventListener("click", async () => {
 });
 ```
 
-It asks for permission, subscribes with the app's VAPID key (fetched from iAlert), and registers the subscription. Pushes then show as system notifications even when no tab is open. When a tab is open, the service worker also passes the message to `onMessage` (`source: "push"`), deduplicated against the Gateway and Inbox, and a click on the notification is acknowledged as `clicked`. Set `data.url` on the notification to choose the page a click opens (default `/`).
+It asks for permission, subscribes with the app's VAPID key (fetched from iAlert), and registers the subscription. Pushes then show as system notifications even when no tab is open. When a tab is open, the service worker also passes the message to `onMessage` (`source: "push"`), deduplicated against the Gateway and Inbox, and a click on the notification is acknowledged as `clicked`. Send the notification with `url` to choose what a click opens (default `/`): a page of your site is opened in the open tab, another site or an app link in a new window. `IAlertMessage.url` has it for `onMessage` listeners; older messages with `data.url` work the same way.
 
 Without Web Push, the SDK keeps working as before: messages arrive over the Gateway while the page is open and from the Inbox on the next visit.
 

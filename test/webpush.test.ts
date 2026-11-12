@@ -141,6 +141,7 @@ describe("web push", () => {
         assert.equal(received.length, 1);
         assert.equal(received[0]?.source, "push");
         assert.deepEqual(received[0]?.data, { url: "/orders" });
+        assert.equal(received[0]?.url, "/orders");
 
         const acks = requests.filter((r) => r.url.endsWith("/inbox/ack")).map((r) => (r.body as { event: string }).event);
         assert.deepEqual(acks.sort(), ["clicked", "delivered"]);

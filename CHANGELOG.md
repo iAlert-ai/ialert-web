@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0
+
+- Notification links: `IAlertMessage.url` (falling back to `data.url`). A click on a Web Push notification navigates the open tab to a page of the site, or opens another site in a new window; a notification shown without a service worker opens it too.
+- Registration sends a stable `installation_id`, so the Gateway-only device and the Web Push device of a browser are one device.
+
 ## 0.4.0
 
 - `IAlert.init()`: one-line setup that registers, connects and turns on Web Push (silently when allowed, else on the first user interaction).

@@ -5,7 +5,7 @@ type Fetch = typeof globalThis.fetch;
 
 export interface InboxEntry {
     id: string;
-    content: { title: string | null; body: string | null; image: string | null; data: Record<string, unknown> | unknown[] | null; sound?: string | null };
+    content: { title: string | null; body: string | null; image: string | null; url?: string | null; data: Record<string, unknown> | unknown[] | null; sound?: string | null };
     collapse_id: string | null;
     delivered_at: string | null;
     read_at: string | null;

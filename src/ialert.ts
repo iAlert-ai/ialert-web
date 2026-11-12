@@ -4,7 +4,7 @@ import { GatewayConnection, type WebSocketFactory } from "./gateway.ts";
 import { Store, defaultStorage } from "./storage.ts";
 import type { AckEvent, AuthRequestInfo, AuthRequestResult, ConnectionState, Device, EnableWebPushOptions, IAlertMessage, InitOptions, KeyValueStorage, PushSubscriptionLike, RegisterOptions, TagValue, UpdateOptions, WebPushEnvironment } from "./types.ts";
 
-export const SDK_VERSION = "0.4.0";
+export const SDK_VERSION = "0.5.0";
 
 const TAG_KEY = /^[A-Za-z0-9_.:-]{1,64}$/;
 const SEEN_LIMIT = 500;
@@ -129,6 +129,7 @@ export class IAlert {
         const result = await this.api.register({
             platform: "web",
             push_token: options.pushToken ?? this.installationId(),
+            installation_id: this.installationId(),
             sdk_version: SDK_VERSION,
             ...this.deviceFields(options),
             ...this.environmentFields(options),
@@ -367,7 +368,15 @@ export class IAlert {
                         return registration.showNotification(message.title || message.body || "", options);
                     }
 
-                    new notification(message.title || message.body || "", options);
+                    const shown = new notification(message.title || message.body || "", options);
+                    shown.onclick = () => {
+                        shown.close();
+                        globalThis.focus?.();
+                        void this.ack([message.id], "clicked").catch(() => undefined);
+                        if (message.url) {
+                            globalThis.open?.(message.url, "_blank", "noopener");
+                        }
+                    };
                 }).catch(() => undefined);
             },
         };
@@ -444,6 +453,7 @@ export class IAlert {
             created_at: text(message.created_at),
             source: "gateway",
             sound: text(message.sound),
+            url: clickUrl(text(message.url), message.data),
         };
     }
 
@@ -460,6 +470,7 @@ export class IAlert {
             created_at: entry.created_at,
             source: "inbox",
             sound: entry.content.sound ?? null,
+            url: clickUrl(entry.content.url ?? null, data),
         };
     }
 
@@ -643,4 +654,15 @@ export function authRequestOf(message: { data: Record<string, unknown> }): AuthR
         expiresAt: typeof data.expires_at === "string" ? data.expires_at : null,
         context,
     };
+}
+
+/** The notification's `url`, or `data.url` of messages sent before that field existed. */
+function clickUrl(url: string | null, data: unknown): string | null {
+    if (url) {
+        return url;
+    }
+
+    const legacy = data !== null && typeof data === "object" && !Array.isArray(data) ? (data as Record<string, unknown>).url : null;
+
+    return typeof legacy === "string" && legacy !== "" ? legacy : null;
 }
