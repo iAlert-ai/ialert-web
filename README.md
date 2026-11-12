@@ -74,6 +74,10 @@ It asks for permission, subscribes with the app's VAPID key (fetched from iAlert
 
 Without Web Push, the SDK keeps working as before: messages arrive over the Gateway while the page is open and from the Inbox on the next visit.
 
+## Sender name and photo
+
+A message with a `sender` (`{ "id", "name", "avatar" }`) is shown with the sender's name as the title and the photo as the notification icon, both by the service worker and while the page is open. Nothing to set up. `message.sender` carries it in code.
+
 ## Auth Push (approve a sign-in on the phone)
 
 When your server creates an Auth Push request (`POST /v1/auth-requests`), every device of that user gets a high-priority push. Show your own approve/deny screen and answer with the device's token:

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0
+
+- A message with a `sender` shows the sender's name as the title and the photo as the icon (service worker and in-page notifications). `IAlertMessage.sender` / `IAlertSender`.
+
 ## 0.5.0
 
 - Notification links: `IAlertMessage.url` (falling back to `data.url`). A click on a Web Push notification navigates the open tab to a page of the site, or opens another site in a new window; a notification shown without a service worker opens it too.

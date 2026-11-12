@@ -38,6 +38,15 @@ export interface IAlertMessage {
      * for messages sent before the `url` field.
      */
     url?: string | null;
+    /** Who the message is from: the notification shows the sender's name and photo, like a chat message. */
+    sender?: IAlertSender | null;
+}
+
+/** The sender of a conversation notification; `id` keeps one sender's messages together, `avatar` is an HTTPS image. */
+export interface IAlertSender {
+    id?: string | null;
+    name: string;
+    avatar?: string | null;
 }
 
 export type AckEvent = "delivered" | "read" | "clicked";

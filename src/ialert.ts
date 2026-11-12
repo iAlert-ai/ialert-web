@@ -2,9 +2,9 @@ import { ApiClient, type InboxEntry } from "./api.ts";
 import { IAlertError } from "./errors.ts";
 import { GatewayConnection, type WebSocketFactory } from "./gateway.ts";
 import { Store, defaultStorage } from "./storage.ts";
-import type { AckEvent, AuthRequestInfo, AuthRequestResult, ConnectionState, Device, EnableWebPushOptions, IAlertMessage, InitOptions, KeyValueStorage, PushSubscriptionLike, RegisterOptions, TagValue, UpdateOptions, WebPushEnvironment } from "./types.ts";
+import type { AckEvent, AuthRequestInfo, AuthRequestResult, ConnectionState, Device, EnableWebPushOptions, IAlertMessage, IAlertSender, InitOptions, KeyValueStorage, PushSubscriptionLike, RegisterOptions, TagValue, UpdateOptions, WebPushEnvironment } from "./types.ts";
 
-export const SDK_VERSION = "0.5.0";
+export const SDK_VERSION = "0.6.0";
 
 const TAG_KEY = /^[A-Za-z0-9_.:-]{1,64}$/;
 const SEEN_LIMIT = 500;
@@ -352,8 +352,12 @@ export class IAlert {
             permission: () => notification.permission,
             isHidden: () => (globalThis as { document?: Document }).document?.visibilityState === "hidden",
             showNotification: (message) => {
+                // A message with a sender reads like a chat message: the sender's name and photo.
+                const sender = message.sender ?? null;
+                const title = sender ? sender.name : message.title || message.body || "";
                 const options: NotificationOptions & { image?: string } = {
-                    body: message.title ? (message.body ?? "") : "",
+                    body: sender ? (message.body ?? message.title ?? "") : message.title ? (message.body ?? "") : "",
+                    icon: sender?.avatar ?? undefined,
                     tag: message.collapse_id ?? message.id,
                     silent: message.sound === "none",
                     data: { ialert: { ...message, source: undefined } },
@@ -365,10 +369,10 @@ export class IAlert {
 
                 void nav.serviceWorker.getRegistration().then((registration) => {
                     if (registration) {
-                        return registration.showNotification(message.title || message.body || "", options);
+                        return registration.showNotification(title, options);
                     }
 
-                    const shown = new notification(message.title || message.body || "", options);
+                    const shown = new notification(title, options);
                     shown.onclick = () => {
                         shown.close();
                         globalThis.focus?.();
@@ -454,6 +458,7 @@ export class IAlert {
             source: "gateway",
             sound: text(message.sound),
             url: clickUrl(text(message.url), message.data),
+            sender: senderFrom(message.sender),
         };
     }
 
@@ -471,6 +476,7 @@ export class IAlert {
             source: "inbox",
             sound: entry.content.sound ?? null,
             url: clickUrl(entry.content.url ?? null, data),
+            sender: senderFrom(entry.content.sender),
         };
     }
 
@@ -665,4 +671,17 @@ function clickUrl(url: string | null, data: unknown): string | null {
     const legacy = data !== null && typeof data === "object" && !Array.isArray(data) ? (data as Record<string, unknown>).url : null;
 
     return typeof legacy === "string" && legacy !== "" ? legacy : null;
+}
+
+/** A sender object, or null without a name. */
+function senderFrom(value: unknown): IAlertSender | null {
+    if (value === null || typeof value !== "object") {
+        return null;
+    }
+
+    const sender = value as Record<string, unknown>;
+    const text = (field: unknown): string | null => (typeof field === "string" && field !== "" ? field : null);
+    const name = text(sender.name);
+
+    return name ? { id: text(sender.id), name, avatar: text(sender.avatar) } : null;
 }

@@ -29,8 +29,11 @@ self.addEventListener("push", (event) => {
             }
 
             // Browsers require a visible notification for every push.
-            await self.registration.showNotification(message.title || message.body || "", {
-                body: message.title ? message.body || "" : "",
+            // A message with a sender reads like a chat message: the sender's name and photo.
+            const sender = message.sender && message.sender.name ? message.sender : null;
+            await self.registration.showNotification(sender ? sender.name : message.title || message.body || "", {
+                body: sender ? message.body || message.title || "" : message.title ? message.body || "" : "",
+                icon: (sender && sender.avatar) || undefined,
                 image: message.image || undefined,
                 tag: message.collapse_id || message.id,
                 silent: message.sound === "none",
