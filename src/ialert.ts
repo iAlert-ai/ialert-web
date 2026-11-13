@@ -131,9 +131,10 @@ export class IAlert {
             push_token: options.pushToken ?? this.installationId(),
             installation_id: this.installationId(),
             sdk_version: SDK_VERSION,
+            device_binding: true,
             ...this.deviceFields(options),
             ...this.environmentFields(options),
-        });
+        }, this.registration()?.deviceToken); // proves this install owns the device
 
         this.store.set("registration", { deviceId: result.data.id, deviceToken: result.device_token } satisfies Registration);
 

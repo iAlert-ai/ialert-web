@@ -30,8 +30,8 @@ export class ApiClient {
         this.fetchFn = fetchFn;
     }
 
-    register(body: Record<string, unknown>): Promise<{ data: Device; device_token: string }> {
-        return this.request("POST", "/devices", body);
+    register(body: Record<string, unknown>, deviceToken?: string): Promise<{ data: Device; device_token: string }> {
+        return this.request("POST", "/devices", body, deviceToken);
     }
 
     async update(deviceId: string, deviceToken: string, body: Record<string, unknown>): Promise<Device> {
