@@ -4,7 +4,7 @@ import { GatewayConnection, type WebSocketFactory } from "./gateway.ts";
 import { Store, defaultStorage } from "./storage.ts";
 import type { AckEvent, AuthRequestInfo, AuthRequestResult, ConnectionState, Device, EnableWebPushOptions, IAlertMessage, IAlertSender, InitOptions, KeyValueStorage, PushSubscriptionLike, RegisterOptions, TagValue, UpdateOptions, WebPushEnvironment } from "./types.ts";
 
-export const SDK_VERSION = "0.6.0";
+export const SDK_VERSION = "0.7.0";
 
 const TAG_KEY = /^[A-Za-z0-9_.:-]{1,64}$/;
 const SEEN_LIMIT = 500;

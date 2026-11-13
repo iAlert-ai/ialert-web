@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.0
+
+- **Device binding:** every registration sends `device_binding: true` and the stored `X-Device-Token`, so only this install can re-register its device. Another install that learns the push token or installation id (or a reinstall) gets a new, empty device instead of taking this one over (needs iAlert server with device binding).
+
 ## 0.6.0
 
 - A message with a `sender` shows the sender's name as the title and the photo as the icon (service worker and in-page notifications). `IAlertMessage.sender` / `IAlertSender`.
